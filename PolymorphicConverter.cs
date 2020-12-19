@@ -7,6 +7,15 @@ namespace SystemTextJsonPolymorphicDeserialization
 {
     public class PolymorphicConverter : JsonConverter<BaseModel>
     {
+        private readonly string _discriminator;
+        private readonly byte[] _discriminatorUtf8;
+        
+        public PolymorphicConverter(string discriminator)
+        {
+            this._discriminator = discriminator;
+            this._discriminatorUtf8 = System.Text.Encoding.UTF8.GetBytes(discriminator);
+        }
+    
         public readonly Dictionary<string, Type> TypeMapping = new Dictionary<string, Type> {
             { "Bar", typeof(BarModel) },
             { "Foo", typeof(FooModel) }
@@ -22,7 +31,7 @@ namespace SystemTextJsonPolymorphicDeserialization
             Type? deserializedType = null;
             while(typeReader.Read())
             {
-                if(typeReader.TokenType == JsonTokenType.PropertyName && typeReader.GetString() == "Type")
+                if(typeReader.TokenType == JsonTokenType.PropertyName && typeReader.ValueTextEquals(this._discriminatorUtf8))
                 {
                     if(!typeReader.Read())
                     {
@@ -47,7 +56,7 @@ namespace SystemTextJsonPolymorphicDeserialization
 
             if(deserializedType == null)
             {
-                throw new JsonException($"Key 'Type' not found.");
+                throw new JsonException($"Key '{this._discriminator}' not found.");
             }
 
             return (BaseModel?)JsonSerializer.Deserialize(ref reader, deserializedType, options);
